@@ -12,4 +12,5 @@ mkdir -p /root/logs/{front,rest,temp}
 
 mkdir -p /opt/kaltura/docker
 
-git clone ...
+cd /opt/kaltura/docker
+git clone https://github.com/ShukhratE/docker-elk.git
