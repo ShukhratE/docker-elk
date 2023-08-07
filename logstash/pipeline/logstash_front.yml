@@ -1,0 +1,54 @@
+input {
+  file {
+    path => "/opt/elk/logs/front/*"
+    type => "front"
+  }
+}
+filter {
+       if "action/list?bulk_cache=0" in [message] {
+             grok {
+                  match => { "message" => '%{IPORHOST:remote_addr} - - \[%{HTTPDATE:logtimestamp}\] "(?:%{WORD:httpmethod} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion})?|)" %{NUMBER:status} (?:%{NUMBER:bytes}|-) %{NUMBER:seconds} "-" \"%{DATA:user_agent}\"  \"%{DATA:http_host}\" %{NUMBER:processId} - %{NOTSPACE:cache_status} %{NUMBER:request_length} \"%{NOTSPACE:http_content_range}\" \"%{DATA:xForwardedFor}\" \"%{NOTSPACE:xForwardedServer}\" \"%{NOTSPACE:xForwardedHost}\" \"%{DATA:cacheControl}\" - %{NUMBER:connection} \"%{DATA:api_user}\" \"%{DATA:site_guid}\" \"%{DATA:udid}\" \"%{DATA:domain_id}\" \"%{DATA:platform}\" \"%{DATA:raw_post}\" \"%{DATA:stub_response}\" \"%{DATA:x_me}\" \"%{DATA:tvpapi_version}\"' }
+                  #tag_on_failure => "wrong_nginx_log"
+                  }
+      } else {
+             grok {
+                  match => { "message" => '%{IPORHOST:remote_addr} - - \[%{HTTPDATE:logtimestamp}\] "(?:%{WORD:httpmethod} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion})?|)" %{NUMBER:status} (?:%{NUMBER:bytes}|-) %{NUMBER:seconds} "-" \"%{DATA:user_agent}\"  \"%{DATA:http_host}\" %{NUMBER:processId} - %{NOTSPACE:cache_status} %{NUMBER:request_length} \"%{NOTSPACE:http_content_range}\" \"%{DATA:xForwardedFor}\" \"%{NOTSPACE:xForwardedServer}\" \"%{NOTSPACE:xForwardedHost}\" \"%{DATA:cacheControl}\" - %{NUMBER:connection} \"%{DATA:api_user}\" \"%{DATA:site_guid}\" \"%{DATA:udid}\" \"%{DATA:domain_id}\" \"%{DATA:platform}\" \"%{DATA:raw_post}\" \"%{DATA:stub_response}\" \"%{DATA:x_me}\" \"%{DATA:tvpapi_version}\" \"%{DATA:upstream_response_time}\"' }
+                  tag_on_failure => "wrong_nginx_log"
+                  }
+      }
+
+       if "wrong_nginx_log" in [tags] {
+         mutate {
+                 rename => { "message" => "tags" }
+                }
+       }
+       #mutate {
+       #          rename => { "@timestamp" => "read_timestamp" }
+       #}
+       date {
+            match => [ "logtimestamp" , "dd/MMM/yyyy:HH:mm:ss Z" ]
+            #target => "@timestamp"
+            target => "logtimestamp"
+       }
+       mutate {
+            remove_field => ["message", "[agent][hostname]", "[agent][ephemeral_id]", "[agent][id]", "[ecs][version]", "input.type"]
+            convert => ["status", "integer"]
+            convert => ["bytes", "integer"]
+            convert => ["seconds", "float"]
+            convert => ["upstream_response_time", "float"]
+            gsub => ['raw_post', '\\x22', '"']
+            gsub => ["raw_post", "\\x5C", "[\\]"]
+            gsub => ["raw_post", "\\x0A", ""]
+            rename => ["[geoip][city_name]", "city" ]
+            rename => ["[geoip][region_name]", "region"]
+            copy => { "request" => "newreq" }
+        }
+}
+output {
+     elasticsearch {
+        hosts => ["elasticsearch:9200"]
+        index => "logstash_nginx7.5.0-%{+YYYY.MM.dd}"
+     }
+} 
+
+
