@@ -14,3 +14,4 @@ mkdir -p /opt/kaltura/docker
 
 cd /opt/kaltura/docker
 git clone https://github.com/ShukhratE/docker-elk.git
+rpm -ivh https://linuxsoft.cern.ch/cern/centos/7/cern/x86_64/Packages/parallel-20150522-1.el7.cern.noarch.rpm
